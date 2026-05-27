@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>МолокоУчёт — Приёмка и контроль сырья</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,900&family=Spline+Sans+Mono:wght@400;500;600&family=Spline+Sans:wght@400;500;600;700&display=swap');
+
+  :root {
+    --cream: #f4f1e8;
+    --cream-deep: #ece7d6;
+    --ink: #1a1c18;
+    --ink-soft: #44473f;
+    --milk: #fbfaf5;
+    --line: #d6d0bd;
+    --accent: #2f6b3f;      /* dairy green */
+    --accent-deep: #1f4a2b;
+    --gold: #c89a3c;
+    --blue: #2d5a8a;
+    --rust: #9a4221;
+    --shadow: rgba(26, 28, 24, 0.12);
+
+    --status-recv: #b07a1e;
+    --status-tech: #2d5a8a;
+    --status-lab: #6b3fa0;
+    --status-done: #2f6b3f;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Spline Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    background-image:
+      radial-gradient(circle at 12% 18%, rgba(47,107,63,0.05) 0, transparent 35%),
+      radial-gradient(circle at 88% 78%, rgba(200,154,60,0.06) 0, transparent 40%);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- HEADER ---------- */
+  header.topbar {
+    border-bottom: 2px solid var(--ink);
+    background: var(--milk);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .topbar-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-mark {
+    width: 46px; height: 46px;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--accent);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .brand-mark::after {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    border-radius: 50%;
+    border: 2px solid var(--milk);
+    border-top-color: transparent;
+    transform: rotate(35deg);
+  }
+  .brand-mark span {
+    color: var(--milk); font-weight: 900;
+    font-family: 'Fraunces', serif; font-size: 20px;
+    z-index: 2;
+  }
+  .brand-txt h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 900;
+    font-size: 26px;
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .brand-txt p {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+
+  /* ---------- ROLE SWITCHER ---------- */
+  .roles {
+    display: flex;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--cream-deep);
+  }
+  .role-tab {
+    font-family: 'Spline Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 11px 20px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--ink-soft);
+    border-right: 2px solid var(--ink);
+    transition: all 0.15s ease;
+    display: flex; align-items: center; gap: 8px;
+    white-space: nowrap;
+  }
+  .role-tab:last-child { border-right: none; }
+  .role-tab:hover { background: var(--cream); color: var(--ink); }
+  .role-tab.active { background: var(--ink); color: var(--milk); }
+  .role-tab .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor; opacity: 0.6;
+  }
+  .role-tab.active .dot { opacity: 1; }
+
+  /* ---------- MAIN ---------- */
+  main {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 34px 32px 80px;
+  }
+
+  .view-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 20px; flex-wrap: wrap;
+    margin-bottom: 28px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .view-head-l .eyebrow {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  .view-head-l h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 34px; font-weight: 900; letter-spacing: -0.8px;
+    margin-top: 4px; line-height: 1;
+  }
+  .view-head-l .sub { color: var(--ink-soft); font-size: 14px; margin-top: 8px; max-width: 460px; }
+
+  /* ---------- BUTTONS ---------- */
+  .btn {
+    font-family: 'Spline Sans', sans-serif;
+    font-weight: 600; font-size: 14px;
+    padding: 12px 20px;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    cursor: pointer;
+    background: var(--milk);
+    color: var(--ink);
+    transition: all 0.15s ease;
+    display: inline-flex; align-items: center; gap: 9px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+  .btn:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+  .btn-accent { background: var(--accent); color: var(--milk); }
+  .btn-gold { background: var(--gold); color: var(--ink); }
+  .btn-sm { padding: 9px 15px; font-size: 13px; box-shadow: 2px 2px 0 var(--ink); }
+  .btn-sm:hover { box-shadow: 3px 3px 0 var(--ink); }
+  .btn-del { background: var(--milk); color: var(--rust); border-color: var(--rust); box-shadow: 2px 2px 0 var(--rust); padding: 9px 11px; }
+  .btn-del:hover { background: var(--rust); color: var(--milk); box-shadow: 3px 3px 0 var(--rust); }
+  .btn-del svg { width: 16px; height: 16px; }
+  .btn svg { width: 17px; height: 17px; }
+
+  /* ---------- FORM ---------- */
+  .panel {
+    background: var(--milk);
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    box-shadow: 5px 5px 0 var(--shadow);
+    margin-bottom: 34px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 16px 24px;
+    border-bottom: 2px solid var(--ink);
+    background: var(--cream-deep);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .panel-head h3 {
+    font-family: 'Fraunces', serif; font-size: 19px; font-weight: 600;
+  }
+  .panel-head .tag {
+    margin-left: auto;
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px; letter-spacing: 1px;
+    padding: 4px 10px; border: 1px solid var(--ink);
+    border-radius: 20px; text-transform: uppercase;
+  }
+  .panel-body { padding: 24px; }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 18px;
+  }
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  .field label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.4px;
+    text-transform: uppercase; color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .field label .unit {
+    font-family: 'Spline Sans Mono', monospace;
+    font-weight: 400; text-transform: none; color: var(--accent);
+  }
+  .field input, .field select {
+    font-family: 'Spline Sans', sans-serif;
+    font-size: 15px;
+    padding: 11px 13px;
+    border: 1.5px solid var(--line);
+    border-radius: 4px;
+    background: var(--cream);
+    color: var(--ink);
+    transition: border 0.15s, box-shadow 0.15s;
+  }
+  .field input:focus, .field select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(47,107,63,0.12);
+    background: var(--milk);
+  }
+  .form-actions { margin-top: 22px; display: flex; gap: 12px; flex-wrap: wrap; }
+
+  /* ---------- STATS STRIP ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0;
+    border: 2px solid var(--ink);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 32px;
+    background: var(--milk);
+    box-shadow: 4px 4px 0 var(--shadow);
+  }
+  .stat {
+    padding: 18px 22px;
+    border-right: 1px solid var(--line);
+  }
+  .stat:last-child { border-right: none; }
+  .stat .num {
+    font-family: 'Fraunces', serif; font-size: 38px; font-weight: 900;
+    line-height: 1; letter-spacing: -1px;
+  }
+  .stat .lbl {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--ink-soft); margin-top: 6px; font-weight: 600;
+  }
+  .stat .bar { height: 3px; margin-top: 12px; border-radius: 2px; }
+
+  /* ---------- CARDS ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 22px;
+  }
+  .card {
+    background: var(--milk);
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    box-shadow: 5px 5px 0 var(--shadow);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    position: relative;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 7px 9px 0 var(--shadow); }
+  .card-stripe { height: 6px; width: 100%; }
+  .card-top {
+    padding: 18px 20px 14px;
+    border-bottom: 1px dashed var(--line);
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .card-id {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 12px; color: var(--ink-soft); letter-spacing: 0.5px;
+  }
+  .card-supplier {
+    font-family: 'Fraunces', serif; font-size: 21px; font-weight: 600;
+    line-height: 1.1; margin-top: 3px;
+  }
+  .status-pill {
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 10.5px; font-weight: 600; letter-spacing: 0.5px;
+    padding: 5px 10px; border-radius: 20px;
+    text-transform: uppercase; white-space: nowrap;
+    border: 1.5px solid;
+  }
+  .card-meta {
+    padding: 14px 20px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px;
+  }
+  .meta-item .k {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--ink-soft); font-weight: 600;
+  }
+  .meta-item .v {
+    font-family: 'Spline Sans Mono', monospace; font-size: 14px;
+    margin-top: 2px; font-weight: 500;
+  }
+  .lab-block {
+    margin: 0 20px 14px;
+    padding: 14px;
+    background: var(--cream);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .lab-block h5 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: var(--accent-deep); margin-bottom: 10px; font-weight: 700;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .lab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .lab-item { display: flex; justify-content: space-between; gap: 8px;
+    font-family: 'Spline Sans Mono', monospace; font-size: 13px;
+    padding-bottom: 5px; border-bottom: 1px dotted var(--line); }
+  .lab-item .lk { color: var(--ink-soft); }
+  .lab-item .lv { font-weight: 600; }
+  .card-foot {
+    margin-top: auto;
+    padding: 14px 20px 18px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+  }
+  .card-trace {
+    padding: 10px 20px;
+    background: var(--cream-deep);
+    border-top: 1px solid var(--line);
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 10.5px; color: var(--ink-soft);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* ---------- EMPTY ---------- */
+  .empty {
+    text-align: center;
+    padding: 70px 20px;
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    color: var(--ink-soft);
+    grid-column: 1 / -1;
+  }
+  .empty svg { width: 56px; height: 56px; opacity: 0.4; margin-bottom: 16px; }
+  .empty h4 { font-family: 'Fraunces', serif; font-size: 22px; color: var(--ink); margin-bottom: 6px; }
+
+  /* ---------- TABLE (tech) ---------- */
+  .table-wrap {
+    border: 2px solid var(--ink);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 5px 5px 0 var(--shadow);
+    background: var(--milk);
+  }
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 1000px; }
+  thead th {
+    background: var(--ink); color: var(--milk);
+    font-family: 'Spline Sans Mono', monospace;
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    padding: 13px 14px; text-align: left; white-space: nowrap;
+    border-right: 1px solid rgba(255,255,255,0.12);
+  }
+  tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    font-size: 13.5px;
+    font-family: 'Spline Sans Mono', monospace;
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) { background: var(--cream); }
+  tbody tr:hover { background: var(--cream-deep); }
+  tbody .empty-row td { text-align: center; padding: 40px; color: var(--ink-soft); font-family: 'Spline Sans'; }
+  .mini-pill {
+    font-size: 10px; padding: 3px 8px; border-radius: 12px;
+    border: 1px solid; font-weight: 600;
+  }
+
+  /* ---------- TOAST ---------- */
+  #toast-wrap {
+    position: fixed; bottom: 28px; right: 28px; z-index: 200;
+    display: flex; flex-direction: column; gap: 10px; align-items: flex-end;
+  }
+  .toast {
+    background: var(--ink); color: var(--milk);
+    padding: 14px 20px; border-radius: 6px;
+    font-size: 14px; font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    display: flex; align-items: center; gap: 10px;
+    animation: toastIn 0.3s cubic-bezier(.2,.9,.3,1.2);
+    border-left: 4px solid var(--accent);
+    max-width: 340px;
+  }
+  .toast.err { border-left-color: var(--rust); }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity:1; transform: none; } }
+
+  .helper-note {
+    background: var(--cream-deep);
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 26px;
+    display: flex; align-items: flex-start; gap: 10px;
+  }
+  .helper-note svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+
+  @media (max-width: 640px) {
+    .topbar-inner { padding: 14px 18px; }
+    main { padding: 24px 18px 60px; }
+    .roles { width: 100%; }
+    .role-tab { flex: 1; justify-content: center; padding: 11px 8px; font-size: 13px; }
+    .view-head-l h2 { font-size: 27px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark"><span>М</span></div>
+      <div class="brand-txt">
+        <h1>МолокоУчёт</h1>
+        <p>Приёмка · Лаборатория · Технология</p>
+      </div>
+    </div>
+    <div class="roles" id="roles">
+      <button class="role-tab active" data-role="receiver"><span class="dot"></span>Приёмщик</button>
+      <button class="role-tab" data-role="lab"><span class="dot"></span>Лаборант</button>
+      <button class="role-tab" data-role="tech"><span class="dot"></span>Технолог</button>
+    </div>
+  </div>
+</header>
+
+<main id="app"></main>
+
+<div id="toast-wrap"></div>
+
+<script>
+/* =========================================================
+   МолокоУчёт — учёт сырья молока по ролям
+   Чистый vanilla JS. "БД" — массив в памяти браузера.
+   ========================================================= */
+
+/* ---------- МОДЕЛЬ ДАННЫХ ---------- */
+// Единая таблица записей (имитация БД в памяти)
+const DB = [];
+let seq = 1; // счётчик ID
+
+// Статусы и их жизненный цикл
+const STATUS = {
+  RECEIVED: 'На приёмке',
+  TECH:     'У технолога',
+  LAB:      'В лаборатории',
+  DONE:     'Готово',
+};
+
+const STATUS_META = {
+  [STATUS.RECEIVED]: { color: 'var(--status-recv)', short: 'Приёмка' },
+  [STATUS.TECH]:     { color: 'var(--status-tech)', short: 'Технолог' },
+  [STATUS.LAB]:      { color: 'var(--status-lab)',  short: 'Лаборат.' },
+  [STATUS.DONE]:     { color: 'var(--status-done)', short: 'Готово' },
+};
+
+const ROLE_LABEL = { receiver: 'Приёмщик', lab: 'Лаборант', tech: 'Технолог' };
+
+// Список сдатчиков для выпадающего списка
+const SUPPLIERS = [
+  'Понохова Любовь Николаевна',
+  'Павлов Юрий Степанович',
+  'Павлова Валентина Викторовна',
+  'Федоров Михаил Иванович',
+  'Кириллина Туйаара Борисовна',
+  'Илларионов Виктор Витальевич',
+  'Васильев Виктор Степанович',
+  'Евсеев Михаил Михайлович',
+  'Илларионова Антонина Григорьевна',
+  'Павлов Степан Степанович',
+  'Зедгенидзева Светлана Николаевна',
+];
+
+let currentRole = 'receiver';
+
+/* ---------- УТИЛИТЫ ---------- */
+const $ = (sel, root = document) => root.querySelector(sel);
+const el = (tag, attrs = {}, html = '') => {
+  const n = document.createElement(tag);
+  Object.entries(attrs).forEach(([k, v]) => {
+    if (k === 'class') n.className = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  });
+  if (html) n.innerHTML = html;
+  return n;
+};
+
+function fmtDateTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit' });
+}
+function pad(n) { return String(n).padStart(3, '0'); }
+
+function toast(msg, type = 'ok') {
+  const wrap = $('#toast-wrap');
+  const t = el('div', { class: 'toast' + (type === 'err' ? ' err' : '') });
+  const icon = type === 'err'
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>';
+  t.innerHTML = icon + '<span>' + msg + '</span>';
+  wrap.appendChild(t);
+  setTimeout(() => {
+    t.style.transition = 'opacity .3s, transform .3s';
+    t.style.opacity = '0'; t.style.transform = 'translateX(40px)';
+    setTimeout(() => t.remove(), 300);
+  }, 3000);
+}
+
+/* ---------- SVG-иконки ---------- */
+const ICON = {
+  plus:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>',
+  send:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>',
+  flask: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 3h6M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-3L14 9V3"/><path d="M7 14h10"/></svg>',
+  excel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13l6 5M15 13l-6 5"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6 9 17l-5-5"/></svg>',
+  info:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.5"/></svg>',
+  box:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+  truck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 3h13v11H1zM14 7h4l3 3v4h-7"/><circle cx="6" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/></svg>',
+  drop:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg>',
+  save:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>',
+  load:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+};
+
+/* ---------- ДЕЙСТВИЯ НАД ДАННЫМИ ---------- */
+function addBatch({ supplyDate, supplier, weight }) {
+  const rec = {
+    id: seq++,
+    creatorRole: ROLE_LABEL.receiver,
+    createdAt: new Date().toISOString(),
+    status: STATUS.RECEIVED,
+    // данные этапа приёмки
+    supplyDate,
+    supplier,
+    weight: Number(weight),
+    // данные этапа лаборатории (пока пусто)
+    fat: null, protein: null, density: null, temperature: null, somo: null,
+    labAt: null,
+    // лог переходов
+    trace: [`${fmtDateTime(new Date().toISOString())} — создана приёмщиком`],
+  };
+  DB.push(rec);
+  return rec;
+}
+
+function passToLab(id) {
+  const r = DB.find(x => x.id === id);
+  if (!r) return;
+  r.status = STATUS.LAB;
+  r.trace.push(`${fmtDateTime(new Date().toISOString())} — передана лаборанту`);
+}
+
+function passToTech(id) {
+  const r = DB.find(x => x.id === id);
+  if (!r) return;
+  r.status = STATUS.TECH;
+  r.trace.push(`${fmtDateTime(new Date().toISOString())} — передана технологу`);
+}
+
+function saveLab(id, data) {
+  const r = DB.find(x => x.id === id);
+  if (!r) return;
+  Object.assign(r, {
+    fat: Number(data.fat),
+    protein: Number(data.protein),
+    density: Number(data.density),
+    temperature: Number(data.temperature),
+    somo: Number(data.somo),
+    labAt: new Date().toISOString(),
+    status: STATUS.DONE,
+  });
+  r.trace.push(`${fmtDateTime(new Date().toISOString())} — внесены анализы, партия готова`);
+}
+
+function deleteBatch(id) {
+  const i = DB.findIndex(x => x.id === id);
+  if (i !== -1) DB.splice(i, 1);
+}
+
+/* ---------- РЕНДЕР: общие части ---------- */
+function statusPill(status) {
+  const m = STATUS_META[status];
+  return `<span class="status-pill" style="color:${m.color};border-color:${m.color};background:${m.color}14">${status}</span>`;
+}
+
+function statsStrip() {
+  const counts = {
+    total: DB.length,
+    [STATUS.RECEIVED]: DB.filter(r => r.status === STATUS.RECEIVED).length,
+    [STATUS.LAB]: DB.filter(r => r.status === STATUS.LAB).length,
+    [STATUS.DONE]: DB.filter(r => r.status === STATUS.DONE).length,
+  };
+  const totalWeight = DB.reduce((s, r) => s + (r.weight || 0), 0);
+  return `
+  <div class="stats">
+    <div class="stat"><div class="num">${counts.total}</div><div class="lbl">Всего партий</div>
+      <div class="bar" style="background:var(--ink)"></div></div>
+    <div class="stat"><div class="num">${counts[STATUS.RECEIVED]}</div><div class="lbl">На приёмке</div>
+      <div class="bar" style="background:var(--status-recv)"></div></div>
+    <div class="stat"><div class="num">${counts[STATUS.LAB]}</div><div class="lbl">В лаборатории</div>
+      <div class="bar" style="background:var(--status-lab)"></div></div>
+    <div class="stat"><div class="num">${counts[STATUS.DONE]}</div><div class="lbl">Готово</div>
+      <div class="bar" style="background:var(--status-done)"></div></div>
+    <div class="stat"><div class="num">${totalWeight.toLocaleString('ru-RU')}</div><div class="lbl">Общий вес, кг</div>
+      <div class="bar" style="background:var(--gold)"></div></div>
+  </div>`;
+}
+
+function emptyState(title, text) {
+  return `<div class="empty">${ICON.box}<h4>${title}</h4><p>${text}</p></div>`;
+}
+
+/* ---------- РЕНДЕР: карточка партии ---------- */
+function batchCard(r, opts = {}) {
+  const m = STATUS_META[r.status];
+  const hasLab = r.fat !== null;
+
+  let labHtml = '';
+  if (hasLab) {
+    labHtml = `
+      <div class="lab-block">
+        <h5>${ICON.flask} Результаты анализов</h5>
+        <div class="lab-grid">
+          <div class="lab-item"><span class="lk">Жир</span><span class="lv">${r.fat} %</span></div>
+          <div class="lab-item"><span class="lk">Белок</span><span class="lv">${r.protein} %</span></div>
+          <div class="lab-item"><span class="lk">Плотность</span><span class="lv">${r.density} °A</span></div>
+          <div class="lab-item"><span class="lk">Темп.</span><span class="lv">${r.temperature} °C</span></div>
+          <div class="lab-item"><span class="lk">СОМО</span><span class="lv">${r.somo} %</span></div>
+        </div>
+      </div>`;
+  }
+
+  // кнопки действий — зависят от роли и статуса
+  let actions = '';
+  if (opts.role === 'receiver' && r.status === STATUS.RECEIVED) {
+    actions = `<button class="btn btn-accent btn-sm" data-act="toLab" data-id="${r.id}">${ICON.send} Передать лаборанту</button>`;
+  }
+  if (opts.role === 'lab' && r.status === STATUS.LAB) {
+    actions = `<button class="btn btn-gold btn-sm" data-act="openLab" data-id="${r.id}">${ICON.flask} Внести анализы</button>`;
+  }
+  if (opts.role === 'lab' && r.status === STATUS.DONE) {
+    actions = `<span style="font-size:13px;color:var(--accent-deep);font-weight:600;display:flex;align-items:center;gap:6px">${ICON.check} Анализы внесены</span>`;
+  }
+  if (opts.role === 'tech' && r.status === STATUS.DONE) {
+    actions = `<span style="font-size:13px;color:var(--ink-soft)">Партия завершена ✓</span>`;
+  }
+
+  const labForm = opts.expanded ? labFormHtml(r) : '';
+
+  // кнопка удаления (для приёмщика и лаборанта)
+  const delBtn = (opts.role === 'receiver' || opts.role === 'lab')
+    ? `<button class="btn btn-del btn-sm" data-act="del" data-id="${r.id}" title="Удалить партию">${ICON.trash}</button>`
+    : '';
+
+  return `
+  <div class="card" data-card="${r.id}">
+    <div class="card-stripe" style="background:${m.color}"></div>
+    <div class="card-top">
+      <div>
+        <div class="card-id">ПАРТИЯ #${pad(r.id)}</div>
+        <div class="card-supplier">${escapeHtml(r.supplier)}</div>
+      </div>
+      ${statusPill(r.status)}
+    </div>
+    <div class="card-meta">
+      <div class="meta-item"><div class="k">Дата поставки</div><div class="v">${r.supplyDate}</div></div>
+      <div class="meta-item"><div class="k">Вес сырья</div><div class="v">${r.weight.toLocaleString('ru-RU')} кг</div></div>
+      <div class="meta-item"><div class="k">Создал</div><div class="v">${r.creatorRole}</div></div>
+      <div class="meta-item"><div class="k">Создано</div><div class="v">${fmtDateTime(r.createdAt)}</div></div>
+    </div>
+    ${labHtml}
+    ${labForm}
+    <div class="card-foot">
+      <div style="flex:1;display:flex;gap:10px;flex-wrap:wrap">${actions}</div>
+      ${delBtn}
+    </div>
+    <div class="card-trace">${ICON.info} ${r.trace[r.trace.length - 1]}</div>
+  </div>`;
+}
+
+function labFormHtml(r) {
+  return `
+  <div class="lab-block" style="border-color:var(--gold);background:var(--cream-deep)">
+    <h5 style="color:var(--rust)">${ICON.flask} Ввод результатов анализа</h5>
+    <div class="form-grid" style="grid-template-columns:1fr 1fr">
+      <div class="field"><label>Жир <span class="unit">%</span></label>
+        <input type="number" step="0.01" id="lab-fat-${r.id}" placeholder="напр. 3.6"></div>
+      <div class="field"><label>Белок <span class="unit">%</span></label>
+        <input type="number" step="0.01" id="lab-protein-${r.id}" placeholder="напр. 3.1"></div>
+      <div class="field"><label>Плотность <span class="unit">°A</span></label>
+        <input type="number" step="0.1" id="lab-density-${r.id}" placeholder="напр. 28.0"></div>
+      <div class="field"><label>Температура <span class="unit">°C</span></label>
+        <input type="number" step="0.1" id="lab-temp-${r.id}" placeholder="напр. 4.0"></div>
+      <div class="field"><label>СОМО <span class="unit">%</span></label>
+        <input type="number" step="0.01" id="lab-somo-${r.id}" placeholder="напр. 8.5"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn btn-accent btn-sm" data-act="saveLab" data-id="${r.id}">${ICON.check} Сохранить и завершить</button>
+      <button class="btn btn-sm" data-act="cancelLab" data-id="${r.id}">Отмена</button>
+    </div>
+  </div>`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---------- РЕНДЕР: представления по ролям ---------- */
+let expandedLabId = null; // какая карточка раскрыта для ввода анализов
+
+function renderReceiver() {
+  const list = DB.filter(r => r.creatorRole === ROLE_LABEL.receiver);
+  const today = new Date().toISOString().slice(0, 10);
+
+  return `
+  ${viewHead('Рабочее место приёмщика', 'ПРИЁМКА СЫРЬЯ',
+    'Регистрируйте новые партии молока и передавайте их в лабораторию на анализ.')}
+
+  <div class="panel">
+    <div class="panel-head">${ICON.truck}<h3>Новая партия сырья</h3><span class="tag">Этап 1 · Приёмка</span></div>
+    <div class="panel-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>${ICON_inline('drop')} Дата поставки</label>
+          <input type="date" id="f-date" value="${today}">
+        </div>
+        <div class="field">
+          <label>Сдатчик</label>
+          <select id="f-supplier">
+            <option value="">— выберите сдатчика —</option>
+            ${SUPPLIERS.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Вес сырья <span class="unit">кг</span></label>
+          <input type="number" id="f-weight" step="1" min="0" placeholder="напр. 2400">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-accent" id="btn-add">${ICON.plus} Добавить партию</button>
+      </div>
+    </div>
+  </div>
+
+  ${statsStrip()}
+
+  <div class="view-head" style="border:none;margin-bottom:18px;padding:0">
+    <div class="view-head-l"><span class="eyebrow">Реестр приёмки</span></div>
+  </div>
+  <div class="cards" id="cards">
+    ${list.length ? list.slice().reverse().map(r => batchCard(r, { role: 'receiver' })).join('')
+      : emptyState('Партий пока нет', 'Добавьте первую партию сырья с помощью формы выше.')}
+  </div>`;
+}
+
+function renderLab() {
+  // лаборант видит партии, переданные ему (в лаборатории) + готовые
+  const list = DB.filter(r => r.status === STATUS.LAB || r.status === STATUS.DONE);
+  const pending = DB.filter(r => r.status === STATUS.LAB);
+
+  return `
+  ${viewHead('Рабочее место лаборанта', 'ЛАБОРАТОРНЫЙ КОНТРОЛЬ',
+    'Партии, переданные приёмщиком. Внесите результаты физико-химических анализов.')}
+
+  <div class="helper-note">${ICON.info}
+    <span>Ожидают анализа: <b>${pending.length}</b>. Нажмите «Внести анализы» на карточке, заполните показатели — после сохранения статус партии станет «Готово».</span>
+  </div>
+
+  ${statsStrip()}
+
+  <div class="cards" id="cards">
+    ${list.length ? list.slice().reverse().map(r =>
+        batchCard(r, { role: 'lab', expanded: expandedLabId === r.id })).join('')
+      : emptyState('Нет партий на анализ', 'Как только приёмщик передаст партию, она появится здесь.')}
+  </div>`;
+}
+
+function renderTech() {
+  const rows = DB.slice().reverse().map(r => `
+    <tr>
+      <td>#${pad(r.id)}</td>
+      <td>${escapeHtml(r.creatorRole)}</td>
+      <td>${fmtDateTime(r.createdAt)}</td>
+      <td>${statusMiniPill(r.status)}</td>
+      <td>${r.supplyDate}</td>
+      <td>${escapeHtml(r.supplier)}</td>
+      <td>${r.weight.toLocaleString('ru-RU')}</td>
+      <td>${r.fat ?? '—'}</td>
+      <td>${r.protein ?? '—'}</td>
+      <td>${r.density ?? '—'}</td>
+      <td>${r.temperature ?? '—'}</td>
+      <td>${r.somo ?? '—'}</td>
+      <td>${r.labAt ? fmtDateTime(r.labAt) : '—'}</td>
+      <td style="text-align:center"><button class="btn btn-del btn-sm" data-act="del" data-id="${r.id}" title="Удалить партию">${ICON.trash}</button></td>
+    </tr>`).join('');
+
+  return `
+  ${viewHead('Рабочее место технолога', 'СВОДНЫЙ ЖУРНАЛ',
+    'Полная таблица всех записей по всем этапам. Выгрузка единого журнала в Excel.')}
+
+  ${statsStrip()}
+
+  <div class="view-head" style="border:none;padding:0;margin-bottom:18px">
+    <div class="view-head-l"><span class="eyebrow">Единая таблица данных</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" id="btn-save">${ICON.save} Сохранить партии</button>
+      <button class="btn" id="btn-load">${ICON.load} Загрузить</button>
+      <button class="btn btn-gold" id="btn-export">${ICON.excel} Выгрузить в Excel</button>
+      <input type="file" id="file-input" accept=".json,application/json" style="display:none">
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>ID</th><th>Роль создателя</th><th>Дата создания</th><th>Статус</th>
+          <th>Дата поставки</th><th>Сдатчик</th><th>Вес, кг</th>
+          <th>Жир, %</th><th>Белок, %</th><th>Плотн., °A</th><th>Темп., °C</th><th>СОМО, %</th>
+          <th>Дата анализа</th><th>Действие</th>
+        </tr></thead>
+        <tbody>
+          ${rows || '<tr class="empty-row"><td colspan="14">Данных пока нет. Партии появятся после регистрации приёмщиком.</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function statusMiniPill(status) {
+  const m = STATUS_META[status];
+  return `<span class="mini-pill" style="color:${m.color};border-color:${m.color};background:${m.color}14">${m.short}</span>`;
+}
+
+function viewHead(title, eyebrow, sub) {
+  return `
+  <div class="view-head">
+    <div class="view-head-l">
+      <span class="eyebrow">${eyebrow}</span>
+      <h2>${title}</h2>
+      <p class="sub">${sub}</p>
+    </div>
+  </div>`;
+}
+
+function ICON_inline(name) { return ''; } // плейсхолдер для меток без иконок
+
+/* ---------- ЭКСПОРТ В EXCEL (XLSX) ---------- */
+function exportExcel() {
+  if (DB.length === 0) { toast('Нет данных для выгрузки', 'err'); return; }
+
+  const data = DB.map(r => ({
+    'ID': r.id,
+    'Роль создателя': r.creatorRole,
+    'Дата создания': fmtDateTime(r.createdAt),
+    'Статус': r.status,
+    'Дата поставки': r.supplyDate,
+    'Сдатчик': r.supplier,
+    'Вес сырья, кг': r.weight,
+    'Жир, %': r.fat ?? '',
+    'Белок, %': r.protein ?? '',
+    'Плотность, °A': r.density ?? '',
+    'Температура, °C': r.temperature ?? '',
+    'СОМО, %': r.somo ?? '',
+    'Дата анализа': r.labAt ? fmtDateTime(r.labAt) : '',
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  // ширины колонок
+  ws['!cols'] = [
+    { wch: 5 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 13 },
+    { wch: 22 }, { wch: 13 }, { wch: 9 }, { wch: 9 }, { wch: 12 },
+    { wch: 14 }, { wch: 9 }, { wch: 18 },
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Журнал партий');
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `МолокоУчёт_журнал_${stamp}.xlsx`);
+  toast(`Выгружено записей: ${DB.length}`);
+}
+
+/* ---------- ГЛАВНЫЙ РЕНДЕР + СОБЫТИЯ ---------- */
+function render() {
+  persist(); // автосохранение в браузере
+  const app = $('#app');
+  if (currentRole === 'receiver') app.innerHTML = renderReceiver();
+  else if (currentRole === 'lab')  app.innerHTML = renderLab();
+  else                             app.innerHTML = renderTech();
+  bindViewEvents();
+}
+
+function bindViewEvents() {
+  // Приёмщик: добавить
+  const add = $('#btn-add');
+  if (add) add.addEventListener('click', () => {
+    const date = $('#f-date').value;
+    const supplier = $('#f-supplier').value.trim();
+    const weight = $('#f-weight').value;
+    if (!date) { toast('Укажите дату поставки', 'err'); return; }
+    if (!supplier) { toast('Выберите сдатчика из списка', 'err'); return; }
+    if (!weight || Number(weight) <= 0) { toast('Укажите корректный вес', 'err'); return; }
+    const r = addBatch({ supplyDate: date, supplier, weight });
+    toast(`Партия #${pad(r.id)} добавлена`);
+    render();
+  });
+
+  // Технолог: экспорт
+  const exp = $('#btn-export');
+  if (exp) exp.addEventListener('click', exportExcel);
+
+  // Технолог: сохранить партии в файл
+  const save = $('#btn-save');
+  if (save) save.addEventListener('click', saveToFile);
+
+  // Технолог: загрузить из файла
+  const load = $('#btn-load');
+  const fileInput = $('#file-input');
+  if (load && fileInput) {
+    load.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (f) loadFromFile(f);
+      e.target.value = '';
+    });
+  }
+
+  // Делегирование кнопок на карточках
+  const cards = $('#cards');
+  if (cards) cards.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act]');
+    if (!btn) return;
+    const id = Number(btn.dataset.id);
+    const act = btn.dataset.act;
+
+    if (act === 'toLab') {
+      passToLab(id);
+      toast(`Партия #${pad(id)} передана лаборанту`);
+      render();
+    }
+    else if (act === 'openLab') {
+      expandedLabId = id;
+      render();
+    }
+    else if (act === 'cancelLab') {
+      expandedLabId = null;
+      render();
+    }
+    else if (act === 'saveLab') {
+      const fat = $('#lab-fat-' + id).value;
+      const protein = $('#lab-protein-' + id).value;
+      const density = $('#lab-density-' + id).value;
+      const temperature = $('#lab-temp-' + id).value;
+      const somo = $('#lab-somo-' + id).value;
+      if ([fat, protein, density, temperature, somo].some(v => v === '' || v === null)) {
+        toast('Заполните все показатели анализа', 'err'); return;
+      }
+      saveLab(id, { fat, protein, density, temperature, somo });
+      expandedLabId = null;
+      toast(`Анализы партии #${pad(id)} сохранены`);
+      render();
+    }
+    else if (act === 'del') {
+      handleDelete(id);
+    }
+  });
+
+  // Делегирование кнопок удаления в таблице технолога
+  const tableWrap = $('.table-wrap');
+  if (tableWrap) tableWrap.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-act="del"]');
+    if (!btn) return;
+    handleDelete(Number(btn.dataset.id));
+  });
+}
+
+// Удаление с подтверждением
+function handleDelete(id) {
+  const r = DB.find(x => x.id === id);
+  if (!r) return;
+  const ok = confirm(`Удалить партию #${pad(id)} (${r.supplier})?\n\nДействие необратимо.`);
+  if (!ok) return;
+  deleteBatch(id);
+  if (expandedLabId === id) expandedLabId = null;
+  toast(`Партия #${pad(id)} удалена`);
+  render();
+}
+
+/* ---------- ПЕРЕКЛЮЧАТЕЛЬ РОЛЕЙ ---------- */
+$('#roles').addEventListener('click', (e) => {
+  const tab = e.target.closest('.role-tab');
+  if (!tab) return;
+  currentRole = tab.dataset.role;
+  expandedLabId = null;
+  document.querySelectorAll('.role-tab').forEach(t => t.classList.toggle('active', t === tab));
+  render();
+});
+
+/* ---------- СОХРАНЕНИЕ ДАННЫХ ---------- */
+const STORAGE_KEY = 'milkapp_data_v1';
+
+// Автосохранение в браузере (localStorage)
+function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ db: DB, seq }));
+  } catch (e) { /* localStorage может быть недоступен — не критично */ }
+}
+
+// Загрузка из браузера при старте
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (Array.isArray(data.db)) {
+      DB.length = 0;
+      data.db.forEach(r => DB.push(r));
+      seq = data.seq || (DB.reduce((m, r) => Math.max(m, r.id), 0) + 1);
+    }
+  } catch (e) { /* повреждённые данные — игнорируем */ }
+}
+
+// Сохранение всех партий в файл (скачивание бэкапа)
+function saveToFile() {
+  const payload = JSON.stringify({ db: DB, seq, savedAt: new Date().toISOString() }, null, 2);
+  const blob = new Blob([payload], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `МолокоУчёт_данные_${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Сохранено партий: ${DB.length}`);
+}
+
+// Загрузка партий из файла
+function loadFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.db)) throw new Error('bad');
+      DB.length = 0;
+      data.db.forEach(r => DB.push(r));
+      seq = data.seq || (DB.reduce((m, r) => Math.max(m, r.id), 0) + 1);
+      persist();
+      expandedLabId = null;
+      toast(`Загружено партий: ${DB.length}`);
+      render();
+    } catch (e) {
+      toast('Не удалось прочитать файл данных', 'err');
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ---------- СТАРТ ---------- */
+loadFromStorage();
+render();
+
+</script>
+</body>
+</html>
