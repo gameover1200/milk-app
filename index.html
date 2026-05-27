@@ -492,6 +492,7 @@
     <div class="roles" id="roles">
       <button class="role-tab active" data-role="receiver"><span class="dot"></span>Приёмщик</button>
       <button class="role-tab" data-role="lab"><span class="dot"></span>Лаборант</button>
+      <button class="role-tab" data-role="product"><span class="dot"></span>Готовая продукция</button>
       <button class="role-tab" data-role="tech"><span class="dot"></span>Технолог</button>
     </div>
     <button class="db-badge" id="db-badge" title="Настройки общей базы данных">
@@ -539,8 +540,10 @@
   creator_role text,
   created_at text,
   status text,
+  kind text,
   supply_date text,
   supplier text,
+  product text,
   weight numeric,
   fat numeric, protein numeric, density numeric,
   temperature numeric, somo numeric,
@@ -625,7 +628,7 @@ async function cloudDelete(id) {
 function rowToCloud(r) {
   return {
     id: r.id, creator_role: r.creatorRole, created_at: r.createdAt, status: r.status,
-    supply_date: r.supplyDate, supplier: r.supplier, weight: r.weight,
+    kind: r.kind, supply_date: r.supplyDate, supplier: r.supplier, product: r.product, weight: r.weight,
     fat: r.fat, protein: r.protein, density: r.density,
     temperature: r.temperature, somo: r.somo, lab_at: r.labAt, trace: r.trace,
   };
@@ -633,7 +636,8 @@ function rowToCloud(r) {
 function rowFromCloud(row) {
   return {
     id: row.id, creatorRole: row.creator_role, createdAt: row.created_at, status: row.status,
-    supplyDate: row.supply_date, supplier: row.supplier, weight: row.weight,
+    kind: row.kind || 'Сырьё', supplyDate: row.supply_date, supplier: row.supplier,
+    product: row.product, weight: row.weight,
     fat: row.fat, protein: row.protein, density: row.density,
     temperature: row.temperature, somo: row.somo, labAt: row.lab_at,
     trace: row.trace || [],
@@ -660,7 +664,7 @@ const STATUS_META = {
   [STATUS.DONE]:     { color: 'var(--status-done)', short: 'Готово' },
 };
 
-const ROLE_LABEL = { receiver: 'Приёмщик', lab: 'Лаборант', tech: 'Технолог' };
+const ROLE_LABEL = { receiver: 'Приёмщик', lab: 'Лаборант', tech: 'Технолог', product: 'Готовая продукция' };
 
 // Список сдатчиков для выпадающего списка
 const SUPPLIERS = [
@@ -676,6 +680,17 @@ const SUPPLIERS = [
   'Павлов Степан Степанович',
   'Зедгенидзева Светлана Николаевна',
 ];
+
+// Список готовой продукции
+const PRODUCTS = [
+  'Сливки сырые',
+  'Сливки пастеризованные',
+  'Молоко стерилизованное',
+  'Масло сливочное',
+];
+
+// Тип записи
+const KIND = { RAW: 'Сырьё', PRODUCT: 'Готовая продукция' };
 
 let currentRole = 'receiver';
 
@@ -747,12 +762,41 @@ async function addBatch({ supplyDate, supplier, weight }) {
     creatorRole: ROLE_LABEL.receiver,
     createdAt: now,
     status: STATUS.RECEIVED,
+    kind: KIND.RAW,
     supplyDate,
     supplier,
+    product: null,
     weight: Number(weight),
     fat: null, protein: null, density: null, temperature: null, somo: null,
     labAt: null,
     trace: [`${fmtDateTime(now)} — создана приёмщиком`],
+  };
+  if (CLOUD.enabled) {
+    const saved = await cloudInsert(rec);
+    DB.push(saved);
+    return saved;
+  }
+  seq = rec.id + 1;
+  DB.push(rec);
+  return rec;
+}
+
+// Добавление записи готовой продукции
+async function addProduct({ date, product, weight }) {
+  const now = new Date().toISOString();
+  const rec = {
+    id: newId(),
+    creatorRole: ROLE_LABEL.product,
+    createdAt: now,
+    status: STATUS.DONE,
+    kind: KIND.PRODUCT,
+    supplyDate: date,
+    supplier: null,
+    product,
+    weight: Number(weight),
+    fat: null, protein: null, density: null, temperature: null, somo: null,
+    labAt: null,
+    trace: [`${fmtDateTime(now)} — добавлена готовая продукция`],
   };
   if (CLOUD.enabled) {
     const saved = await cloudInsert(rec);
@@ -809,25 +853,29 @@ function statusPill(status) {
 }
 
 function statsStrip() {
+  const raw = DB.filter(r => r.kind === KIND.RAW);
   const counts = {
-    total: DB.length,
-    [STATUS.RECEIVED]: DB.filter(r => r.status === STATUS.RECEIVED).length,
-    [STATUS.LAB]: DB.filter(r => r.status === STATUS.LAB).length,
-    [STATUS.DONE]: DB.filter(r => r.status === STATUS.DONE).length,
+    total: raw.length,
+    [STATUS.RECEIVED]: raw.filter(r => r.status === STATUS.RECEIVED).length,
+    [STATUS.LAB]: raw.filter(r => r.status === STATUS.LAB).length,
+    [STATUS.DONE]: raw.filter(r => r.status === STATUS.DONE).length,
   };
-  const totalWeight = DB.reduce((s, r) => s + (r.weight || 0), 0);
+  const products = DB.filter(r => r.kind === KIND.PRODUCT).length;
+  const totalWeight = raw.reduce((s, r) => s + (r.weight || 0), 0);
   return `
   <div class="stats">
-    <div class="stat"><div class="num">${counts.total}</div><div class="lbl">Всего партий</div>
+    <div class="stat"><div class="num">${counts.total}</div><div class="lbl">Партий сырья</div>
       <div class="bar" style="background:var(--ink)"></div></div>
     <div class="stat"><div class="num">${counts[STATUS.RECEIVED]}</div><div class="lbl">На приёмке</div>
       <div class="bar" style="background:var(--status-recv)"></div></div>
     <div class="stat"><div class="num">${counts[STATUS.LAB]}</div><div class="lbl">В лаборатории</div>
       <div class="bar" style="background:var(--status-lab)"></div></div>
-    <div class="stat"><div class="num">${counts[STATUS.DONE]}</div><div class="lbl">Готово</div>
+    <div class="stat"><div class="num">${counts[STATUS.DONE]}</div><div class="lbl">Сырьё готово</div>
       <div class="bar" style="background:var(--status-done)"></div></div>
-    <div class="stat"><div class="num">${totalWeight.toLocaleString('ru-RU')}</div><div class="lbl">Общий вес, кг</div>
+    <div class="stat"><div class="num">${products}</div><div class="lbl">Готовая продукция</div>
       <div class="bar" style="background:var(--gold)"></div></div>
+    <div class="stat"><div class="num">${totalWeight.toLocaleString('ru-RU')}</div><div class="lbl">Вес сырья, кг</div>
+      <div class="bar" style="background:var(--blue)"></div></div>
   </div>`;
 }
 
@@ -980,9 +1028,9 @@ function renderReceiver() {
 }
 
 function renderLab() {
-  // лаборант видит партии, переданные ему (в лаборатории) + готовые
-  const list = DB.filter(r => r.status === STATUS.LAB || r.status === STATUS.DONE);
-  const pending = DB.filter(r => r.status === STATUS.LAB);
+  // лаборант видит партии сырья, переданные ему (в лаборатории) + готовые
+  const list = DB.filter(r => r.kind === KIND.RAW && (r.status === STATUS.LAB || r.status === STATUS.DONE));
+  const pending = DB.filter(r => r.kind === KIND.RAW && r.status === STATUS.LAB);
 
   return `
   ${viewHead('Рабочее место лаборанта', 'ЛАБОРАТОРНЫЙ КОНТРОЛЬ',
@@ -1001,6 +1049,84 @@ function renderLab() {
   </div>`;
 }
 
+function renderProduct() {
+  const list = DB.filter(r => r.kind === KIND.PRODUCT);
+  const today = new Date().toISOString().slice(0, 10);
+  const totalWeight = list.reduce((s, r) => s + (r.weight || 0), 0);
+
+  return `
+  ${viewHead('Готовая продукция', 'ВЫПУСК ПРОДУКЦИИ',
+    'Регистрируйте выпущенную готовую продукцию с указанием веса.')}
+
+  <div class="panel">
+    <div class="panel-head">${ICON.box}<h3>Новая продукция</h3><span class="tag">Выпуск</span></div>
+    <div class="panel-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>Дата выпуска</label>
+          <input type="date" id="p-date" value="${today}">
+        </div>
+        <div class="field">
+          <label>Продукт</label>
+          <select id="p-product">
+            <option value="">— выберите продукт —</option>
+            ${PRODUCTS.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Вес <span class="unit">кг</span></label>
+          <input type="number" id="p-weight" step="0.1" min="0" placeholder="напр. 500">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-accent" id="btn-add-product">${ICON.plus} Добавить продукцию</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="num">${list.length}</div><div class="lbl">Записей продукции</div>
+      <div class="bar" style="background:var(--ink)"></div></div>
+    <div class="stat"><div class="num">${totalWeight.toLocaleString('ru-RU')}</div><div class="lbl">Общий вес, кг</div>
+      <div class="bar" style="background:var(--gold)"></div></div>
+  </div>
+
+  <div class="view-head" style="border:none;margin-bottom:18px;padding:0">
+    <div class="view-head-l"><span class="eyebrow">Реестр продукции</span></div>
+  </div>
+  <div class="cards" id="cards">
+    ${list.length ? list.slice().reverse().map(r => productCard(r)).join('')
+      : emptyState('Продукции пока нет', 'Добавьте первую запись готовой продукции с помощью формы выше.')}
+  </div>`;
+}
+
+// Карточка готовой продукции
+function productCard(r) {
+  const m = STATUS_META[r.status];
+  return `
+  <div class="card" data-card="${r.id}">
+    <div class="card-stripe" style="background:var(--gold)"></div>
+    <div class="card-top">
+      <div>
+        <div class="card-id">ПРОДУКЦИЯ #${pad(r.id)}</div>
+        <div class="card-supplier">${escapeHtml(r.product)}</div>
+      </div>
+      <span class="status-pill" style="color:var(--gold);border-color:var(--gold);background:var(--gold)14">Выпущено</span>
+    </div>
+    <div class="card-meta">
+      <div class="meta-item"><div class="k">Дата выпуска</div><div class="v">${r.supplyDate}</div></div>
+      <div class="meta-item"><div class="k">Вес</div><div class="v">${r.weight.toLocaleString('ru-RU')} кг</div></div>
+      <div class="meta-item"><div class="k">Создал</div><div class="v">${r.creatorRole}</div></div>
+      <div class="meta-item"><div class="k">Создано</div><div class="v">${fmtDateTime(r.createdAt)}</div></div>
+    </div>
+    <div class="card-foot">
+      <div style="flex:1"></div>
+      <button class="btn btn-del btn-sm" data-act="del" data-id="${r.id}" title="Удалить запись">${ICON.trash}</button>
+    </div>
+    <div class="card-trace">${ICON.info} ${r.trace[r.trace.length - 1]}</div>
+  </div>`;
+}
+
 function renderTech() {
   const rows = DB.slice().reverse().map(r => `
     <tr>
@@ -1008,16 +1134,18 @@ function renderTech() {
       <td>${escapeHtml(r.creatorRole)}</td>
       <td>${fmtDateTime(r.createdAt)}</td>
       <td>${statusMiniPill(r.status)}</td>
-      <td>${r.supplyDate}</td>
-      <td>${escapeHtml(r.supplier)}</td>
-      <td>${r.weight.toLocaleString('ru-RU')}</td>
+      <td>${escapeHtml(r.kind || '—')}</td>
+      <td>${r.supplyDate || '—'}</td>
+      <td>${r.supplier ? escapeHtml(r.supplier) : '—'}</td>
+      <td>${r.product ? escapeHtml(r.product) : '—'}</td>
+      <td>${r.weight != null ? r.weight.toLocaleString('ru-RU') : '—'}</td>
       <td>${r.fat ?? '—'}</td>
       <td>${r.protein ?? '—'}</td>
       <td>${r.density ?? '—'}</td>
       <td>${r.temperature ?? '—'}</td>
       <td>${r.somo ?? '—'}</td>
       <td>${r.labAt ? fmtDateTime(r.labAt) : '—'}</td>
-      <td style="text-align:center"><button class="btn btn-del btn-sm" data-act="del" data-id="${r.id}" title="Удалить партию">${ICON.trash}</button></td>
+      <td style="text-align:center"><button class="btn btn-del btn-sm" data-act="del" data-id="${r.id}" title="Удалить запись">${ICON.trash}</button></td>
     </tr>`).join('');
 
   return `
@@ -1041,12 +1169,12 @@ function renderTech() {
       <table>
         <thead><tr>
           <th>ID</th><th>Роль создателя</th><th>Дата создания</th><th>Статус</th>
-          <th>Дата поставки</th><th>Сдатчик</th><th>Вес, кг</th>
+          <th>Тип</th><th>Дата</th><th>Сдатчик</th><th>Продукт</th><th>Вес, кг</th>
           <th>Жир, %</th><th>Белок, %</th><th>Плотн., °A</th><th>Темп., °C</th><th>СОМО, %</th>
           <th>Дата анализа</th><th>Действие</th>
         </tr></thead>
         <tbody>
-          ${rows || '<tr class="empty-row"><td colspan="14">Данных пока нет. Партии появятся после регистрации приёмщиком.</td></tr>'}
+          ${rows || '<tr class="empty-row"><td colspan="16">Данных пока нет. Записи появятся после регистрации.</td></tr>'}
         </tbody>
       </table>
     </div>
@@ -1080,9 +1208,11 @@ function exportExcel() {
     'Роль создателя': r.creatorRole,
     'Дата создания': fmtDateTime(r.createdAt),
     'Статус': r.status,
-    'Дата поставки': r.supplyDate,
-    'Сдатчик': r.supplier,
-    'Вес сырья, кг': r.weight,
+    'Тип': r.kind || '',
+    'Дата': r.supplyDate || '',
+    'Сдатчик': r.supplier || '',
+    'Продукт': r.product || '',
+    'Вес, кг': r.weight ?? '',
     'Жир, %': r.fat ?? '',
     'Белок, %': r.protein ?? '',
     'Плотность, °A': r.density ?? '',
@@ -1094,8 +1224,8 @@ function exportExcel() {
   const ws = XLSX.utils.json_to_sheet(data);
   // ширины колонок
   ws['!cols'] = [
-    { wch: 5 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 13 },
-    { wch: 22 }, { wch: 13 }, { wch: 9 }, { wch: 9 }, { wch: 12 },
+    { wch: 5 }, { wch: 18 }, { wch: 18 }, { wch: 14 }, { wch: 18 }, { wch: 13 },
+    { wch: 24 }, { wch: 22 }, { wch: 10 }, { wch: 9 }, { wch: 9 }, { wch: 12 },
     { wch: 14 }, { wch: 9 }, { wch: 18 },
   ];
   const wb = XLSX.utils.book_new();
@@ -1112,6 +1242,7 @@ function render() {
   const app = $('#app');
   if (currentRole === 'receiver') app.innerHTML = renderReceiver();
   else if (currentRole === 'lab')  app.innerHTML = renderLab();
+  else if (currentRole === 'product') app.innerHTML = renderProduct();
   else                             app.innerHTML = renderTech();
   bindViewEvents();
 }
@@ -1134,6 +1265,25 @@ function bindViewEvents() {
     } catch (e) {
       toast('Ошибка сохранения в базу. Проверьте подключение.', 'err');
     } finally { add.disabled = false; }
+  });
+
+  // Готовая продукция: добавить
+  const addP = $('#btn-add-product');
+  if (addP) addP.addEventListener('click', async () => {
+    const date = $('#p-date').value;
+    const product = $('#p-product').value.trim();
+    const weight = $('#p-weight').value;
+    if (!date) { toast('Укажите дату выпуска', 'err'); return; }
+    if (!product) { toast('Выберите продукт из списка', 'err'); return; }
+    if (!weight || Number(weight) <= 0) { toast('Укажите корректный вес', 'err'); return; }
+    addP.disabled = true;
+    try {
+      const r = await addProduct({ date, product, weight });
+      toast(`Продукция #${pad(r.id)} добавлена`);
+      render();
+    } catch (e) {
+      toast('Ошибка сохранения в базу. Проверьте подключение.', 'err');
+    } finally { addP.disabled = false; }
   });
 
   // Технолог: экспорт
