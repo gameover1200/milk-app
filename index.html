@@ -427,6 +427,48 @@
   }
   .helper-note svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; color: var(--accent); }
 
+  /* ---------- DB BADGE + MODAL ---------- */
+  .db-badge {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Spline Sans', sans-serif; font-weight: 600; font-size: 13px;
+    padding: 9px 14px; border: 2px solid var(--ink); border-radius: 4px;
+    background: var(--cream-deep); color: var(--ink); cursor: pointer;
+    transition: all 0.15s ease; white-space: nowrap;
+  }
+  .db-badge:hover { background: var(--cream); }
+  .db-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-soft); }
+  .db-dot.online { background: var(--accent); box-shadow: 0 0 0 3px rgba(47,107,63,0.2); }
+  .db-dot.offline { background: var(--gold); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: rgba(26,28,24,0.55); backdrop-filter: blur(3px);
+    display: grid; place-items: center; padding: 20px;
+  }
+  .modal {
+    background: var(--milk); border: 2px solid var(--ink); border-radius: 10px;
+    box-shadow: 8px 8px 0 var(--shadow); width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-bottom: 2px solid var(--ink); background: var(--cream-deep);
+  }
+  .modal-head h3 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; }
+  .modal-x { background: none; border: none; font-size: 28px; cursor: pointer; color: var(--ink-soft); line-height: 1; }
+  .modal-x:hover { color: var(--rust); }
+  .modal-body { padding: 24px; }
+  .modal-intro { font-size: 14px; color: var(--ink-soft); margin-bottom: 20px; line-height: 1.5; }
+  .modal-actions { margin-top: 20px; display: flex; gap: 12px; }
+  .db-help { margin-top: 22px; border-top: 1px dashed var(--line); padding-top: 16px; }
+  .db-help summary { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--accent-deep); }
+  .db-help ol { margin: 14px 0 0 20px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.7; }
+  .db-help pre {
+    background: var(--ink); color: #d9e8dc; padding: 14px; border-radius: 6px;
+    font-family: 'Spline Sans Mono', monospace; font-size: 11.5px; line-height: 1.5;
+    overflow-x: auto; margin-top: 8px; white-space: pre;
+  }
+
   @media (max-width: 640px) {
     .topbar-inner { padding: 14px 18px; }
     main { padding: 24px 18px 60px; }
@@ -452,8 +494,67 @@
       <button class="role-tab" data-role="lab"><span class="dot"></span>Лаборант</button>
       <button class="role-tab" data-role="tech"><span class="dot"></span>Технолог</button>
     </div>
+    <button class="db-badge" id="db-badge" title="Настройки общей базы данных">
+      <span class="db-dot" id="db-dot"></span>
+      <span id="db-label">База</span>
+    </button>
   </div>
 </header>
+
+<!-- Модальное окно настройки общей базы -->
+<div id="db-modal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Общая база данных</h3>
+      <button class="modal-x" id="db-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-intro" id="db-intro">
+        Чтобы партии были видны всем с любых устройств, подключите бесплатную базу Supabase.
+        Вставьте сюда два значения из вашего проекта Supabase.
+      </p>
+      <div class="field">
+        <label>Project URL</label>
+        <input type="text" id="db-url" placeholder="https://xxxxx.supabase.co" autocomplete="off">
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label>API ключ (anon / publishable)</label>
+        <input type="text" id="db-key" placeholder="eyJ... или sb_publishable_..." autocomplete="off">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-accent" id="db-connect">Подключить</button>
+        <button class="btn" id="db-disconnect" style="display:none">Отключить</button>
+      </div>
+      <details class="db-help">
+        <summary>Как получить эти значения? (пошагово)</summary>
+        <ol>
+          <li>Зайдите на <b>supabase.com</b> → New project (нужен email).</li>
+          <li>Откройте раздел <b>SQL Editor</b> и выполните готовый скрипт создания таблицы (он показан ниже).</li>
+          <li>В <b>Settings → API Keys</b> скопируйте Project URL и ключ anon (publishable).</li>
+          <li>Вставьте оба значения в поля выше и нажмите «Подключить».</li>
+        </ol>
+        <p style="margin-top:10px">SQL для создания таблицы (выполнить один раз в SQL Editor):</p>
+        <pre id="db-sql">create table batches (
+  id bigint primary key,
+  creator_role text,
+  created_at text,
+  status text,
+  supply_date text,
+  supplier text,
+  weight numeric,
+  fat numeric, protein numeric, density numeric,
+  temperature numeric, somo numeric,
+  lab_at text,
+  trace jsonb
+);
+alter table batches enable row level security;
+create policy "public access" on batches
+  for all using (true) with check (true);</pre>
+        <button class="btn btn-sm" id="db-copy-sql" style="margin-top:8px">Скопировать SQL</button>
+      </details>
+    </div>
+  </div>
+</div>
 
 <main id="app"></main>
 
@@ -462,13 +563,82 @@
 <script>
 /* =========================================================
    МолокоУчёт — учёт сырья молока по ролям
-   Чистый vanilla JS. "БД" — массив в памяти браузера.
+   Хранение: общая облачная база (Supabase) + локальный резерв.
    ========================================================= */
 
+/* ---------- ОБЛАЧНОЕ ХРАНИЛИЩЕ (Supabase) ---------- */
+// Настройки подключения хранятся в localStorage браузера.
+// Их вводят один раз через кнопку «Подключить базу».
+const CLOUD = {
+  url:  localStorage.getItem('milk_sb_url')  || '',
+  key:  localStorage.getItem('milk_sb_key')  || '',
+  get enabled() { return !!(this.url && this.key); },
+};
+
+function cloudHeaders() {
+  return {
+    'apikey': CLOUD.key,
+    'Authorization': 'Bearer ' + CLOUD.key,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation',
+  };
+}
+function cloudBase() {
+  return CLOUD.url.replace(/\/+$/, '') + '/rest/v1/batches';
+}
+
+// Загрузить все партии из облака
+async function cloudLoad() {
+  const res = await fetch(cloudBase() + '?select=*&order=id.asc', { headers: cloudHeaders() });
+  if (!res.ok) throw new Error('load ' + res.status);
+  const rows = await res.json();
+  return rows.map(rowFromCloud);
+}
+// Вставить новую партию
+async function cloudInsert(rec) {
+  const res = await fetch(cloudBase(), {
+    method: 'POST', headers: cloudHeaders(), body: JSON.stringify(rowToCloud(rec)),
+  });
+  if (!res.ok) throw new Error('insert ' + res.status);
+  const [row] = await res.json();
+  return rowFromCloud(row);
+}
+// Обновить партию
+async function cloudUpdate(id, rec) {
+  const res = await fetch(cloudBase() + '?id=eq.' + id, {
+    method: 'PATCH', headers: cloudHeaders(), body: JSON.stringify(rowToCloud(rec)),
+  });
+  if (!res.ok) throw new Error('update ' + res.status);
+}
+// Удалить партию
+async function cloudDelete(id) {
+  const res = await fetch(cloudBase() + '?id=eq.' + id, { method: 'DELETE', headers: cloudHeaders() });
+  if (!res.ok) throw new Error('delete ' + res.status);
+}
+
+// Преобразование запись <-> строка БД (snake_case колонки)
+function rowToCloud(r) {
+  return {
+    id: r.id, creator_role: r.creatorRole, created_at: r.createdAt, status: r.status,
+    supply_date: r.supplyDate, supplier: r.supplier, weight: r.weight,
+    fat: r.fat, protein: r.protein, density: r.density,
+    temperature: r.temperature, somo: r.somo, lab_at: r.labAt, trace: r.trace,
+  };
+}
+function rowFromCloud(row) {
+  return {
+    id: row.id, creatorRole: row.creator_role, createdAt: row.created_at, status: row.status,
+    supplyDate: row.supply_date, supplier: row.supplier, weight: row.weight,
+    fat: row.fat, protein: row.protein, density: row.density,
+    temperature: row.temperature, somo: row.somo, labAt: row.lab_at,
+    trace: row.trace || [],
+  };
+}
+
 /* ---------- МОДЕЛЬ ДАННЫХ ---------- */
-// Единая таблица записей (имитация БД в памяти)
+// Единая таблица записей (в памяти; синхронизируется с облаком, если оно подключено)
 const DB = [];
-let seq = 1; // счётчик ID
+let seq = 1; // счётчик ID (используется только в локальном режиме)
 
 // Статусы и их жизненный цикл
 const STATUS = {
@@ -555,42 +725,57 @@ const ICON = {
   load:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
 };
 
-/* ---------- ДЕЙСТВИЯ НАД ДАННЫМИ ---------- */
-function addBatch({ supplyDate, supplier, weight }) {
+/* ---------- ДЕЙСТВИЯ НАД ДАННЫМИ ----------
+   Все функции асинхронные: при подключённом облаке пишут в Supabase,
+   иначе работают локально (память + localStorage). */
+
+function newId() {
+  // в облачном режиме id назначается по максимуму, чтобы не конфликтовать
+  const maxId = DB.reduce((m, r) => Math.max(m, r.id), 0);
+  return Math.max(maxId, seq - 1) + 1;
+}
+
+async function addBatch({ supplyDate, supplier, weight }) {
+  const now = new Date().toISOString();
   const rec = {
-    id: seq++,
+    id: newId(),
     creatorRole: ROLE_LABEL.receiver,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
     status: STATUS.RECEIVED,
-    // данные этапа приёмки
     supplyDate,
     supplier,
     weight: Number(weight),
-    // данные этапа лаборатории (пока пусто)
     fat: null, protein: null, density: null, temperature: null, somo: null,
     labAt: null,
-    // лог переходов
-    trace: [`${fmtDateTime(new Date().toISOString())} — создана приёмщиком`],
+    trace: [`${fmtDateTime(now)} — создана приёмщиком`],
   };
+  if (CLOUD.enabled) {
+    const saved = await cloudInsert(rec);
+    DB.push(saved);
+    return saved;
+  }
+  seq = rec.id + 1;
   DB.push(rec);
   return rec;
 }
 
-function passToLab(id) {
+async function passToLab(id) {
   const r = DB.find(x => x.id === id);
   if (!r) return;
   r.status = STATUS.LAB;
   r.trace.push(`${fmtDateTime(new Date().toISOString())} — передана лаборанту`);
+  if (CLOUD.enabled) await cloudUpdate(id, r);
 }
 
-function passToTech(id) {
+async function passToTech(id) {
   const r = DB.find(x => x.id === id);
   if (!r) return;
   r.status = STATUS.TECH;
   r.trace.push(`${fmtDateTime(new Date().toISOString())} — передана технологу`);
+  if (CLOUD.enabled) await cloudUpdate(id, r);
 }
 
-function saveLab(id, data) {
+async function saveLab(id, data) {
   const r = DB.find(x => x.id === id);
   if (!r) return;
   Object.assign(r, {
@@ -603,9 +788,11 @@ function saveLab(id, data) {
     status: STATUS.DONE,
   });
   r.trace.push(`${fmtDateTime(new Date().toISOString())} — внесены анализы, партия готова`);
+  if (CLOUD.enabled) await cloudUpdate(id, r);
 }
 
-function deleteBatch(id) {
+async function deleteBatch(id) {
+  if (CLOUD.enabled) await cloudDelete(id);
   const i = DB.findIndex(x => x.id === id);
   if (i !== -1) DB.splice(i, 1);
 }
@@ -927,16 +1114,21 @@ function render() {
 function bindViewEvents() {
   // Приёмщик: добавить
   const add = $('#btn-add');
-  if (add) add.addEventListener('click', () => {
+  if (add) add.addEventListener('click', async () => {
     const date = $('#f-date').value;
     const supplier = $('#f-supplier').value.trim();
     const weight = $('#f-weight').value;
     if (!date) { toast('Укажите дату поставки', 'err'); return; }
     if (!supplier) { toast('Выберите сдатчика из списка', 'err'); return; }
     if (!weight || Number(weight) <= 0) { toast('Укажите корректный вес', 'err'); return; }
-    const r = addBatch({ supplyDate: date, supplier, weight });
-    toast(`Партия #${pad(r.id)} добавлена`);
-    render();
+    add.disabled = true;
+    try {
+      const r = await addBatch({ supplyDate: date, supplier, weight });
+      toast(`Партия #${pad(r.id)} добавлена`);
+      render();
+    } catch (e) {
+      toast('Ошибка сохранения в базу. Проверьте подключение.', 'err');
+    } finally { add.disabled = false; }
   });
 
   // Технолог: экспорт
@@ -961,16 +1153,19 @@ function bindViewEvents() {
 
   // Делегирование кнопок на карточках
   const cards = $('#cards');
-  if (cards) cards.addEventListener('click', (e) => {
+  if (cards) cards.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;
     const id = Number(btn.dataset.id);
     const act = btn.dataset.act;
 
     if (act === 'toLab') {
-      passToLab(id);
-      toast(`Партия #${pad(id)} передана лаборанту`);
-      render();
+      btn.disabled = true;
+      try {
+        await passToLab(id);
+        toast(`Партия #${pad(id)} передана лаборанту`);
+        render();
+      } catch (e) { toast('Ошибка сохранения в базу', 'err'); btn.disabled = false; }
     }
     else if (act === 'openLab') {
       expandedLabId = id;
@@ -989,10 +1184,13 @@ function bindViewEvents() {
       if ([fat, protein, density, temperature, somo].some(v => v === '' || v === null)) {
         toast('Заполните все показатели анализа', 'err'); return;
       }
-      saveLab(id, { fat, protein, density, temperature, somo });
-      expandedLabId = null;
-      toast(`Анализы партии #${pad(id)} сохранены`);
-      render();
+      btn.disabled = true;
+      try {
+        await saveLab(id, { fat, protein, density, temperature, somo });
+        expandedLabId = null;
+        toast(`Анализы партии #${pad(id)} сохранены`);
+        render();
+      } catch (e) { toast('Ошибка сохранения в базу', 'err'); btn.disabled = false; }
     }
     else if (act === 'del') {
       handleDelete(id);
@@ -1009,15 +1207,17 @@ function bindViewEvents() {
 }
 
 // Удаление с подтверждением
-function handleDelete(id) {
+async function handleDelete(id) {
   const r = DB.find(x => x.id === id);
   if (!r) return;
   const ok = confirm(`Удалить партию #${pad(id)} (${r.supplier})?\n\nДействие необратимо.`);
   if (!ok) return;
-  deleteBatch(id);
-  if (expandedLabId === id) expandedLabId = null;
-  toast(`Партия #${pad(id)} удалена`);
-  render();
+  try {
+    await deleteBatch(id);
+    if (expandedLabId === id) expandedLabId = null;
+    toast(`Партия #${pad(id)} удалена`);
+    render();
+  } catch (e) { toast('Ошибка удаления из базы', 'err'); }
 }
 
 /* ---------- ПЕРЕКЛЮЧАТЕЛЬ РОЛЕЙ ---------- */
@@ -1033,8 +1233,9 @@ $('#roles').addEventListener('click', (e) => {
 /* ---------- СОХРАНЕНИЕ ДАННЫХ ---------- */
 const STORAGE_KEY = 'milkapp_data_v1';
 
-// Автосохранение в браузере (localStorage)
+// Автосохранение в браузере (localStorage) — только в локальном режиме
 function persist() {
+  if (CLOUD.enabled) return; // в облачном режиме источник истины — база
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ db: DB, seq }));
   } catch (e) { /* localStorage может быть недоступен — не критично */ }
@@ -1089,9 +1290,126 @@ function loadFromFile(file) {
   reader.readAsText(file);
 }
 
+/* ---------- УПРАВЛЕНИЕ ПОДКЛЮЧЕНИЕМ К ОБЛАКУ ---------- */
+function connectCloud(url, key) {
+  CLOUD.url = url.trim();
+  CLOUD.key = key.trim();
+  localStorage.setItem('milk_sb_url', CLOUD.url);
+  localStorage.setItem('milk_sb_key', CLOUD.key);
+}
+function disconnectCloud() {
+  CLOUD.url = ''; CLOUD.key = '';
+  localStorage.removeItem('milk_sb_url');
+  localStorage.removeItem('milk_sb_key');
+}
+
+// Подтянуть данные из облака в DB (используется при старте и автообновлении)
+async function syncFromCloud() {
+  if (!CLOUD.enabled) return false;
+  const rows = await cloudLoad();
+  DB.length = 0;
+  rows.forEach(r => DB.push(r));
+  return true;
+}
+
+// Автообновление: периодически тянем данные из облака, чтобы видеть чужие изменения
+let pollTimer = null;
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  if (!CLOUD.enabled) return;
+  pollTimer = setInterval(async () => {
+    // не обновляем, пока лаборант вводит анализы (чтобы не сбить форму)
+    if (expandedLabId !== null) return;
+    try {
+      const before = JSON.stringify(DB.map(r => [r.id, r.status, r.fat]));
+      await syncFromCloud();
+      const after = JSON.stringify(DB.map(r => [r.id, r.status, r.fat]));
+      if (before !== after) render();
+    } catch (e) { /* временная ошибка сети — игнорируем */ }
+  }, 5000); // каждые 5 секунд
+}
+
+/* ---------- ИНТЕРФЕЙС НАСТРОЙКИ БАЗЫ ---------- */
+function updateDbBadge(state) {
+  const dot = $('#db-dot');
+  const label = $('#db-label');
+  if (!dot) return;
+  dot.classList.remove('online', 'offline');
+  if (state === 'online') { dot.classList.add('online'); label.textContent = 'База: онлайн'; }
+  else if (state === 'offline') { dot.classList.add('offline'); label.textContent = 'База: ошибка'; }
+  else { label.textContent = 'Локально'; }
+}
+
+function openDbModal() {
+  $('#db-url').value = CLOUD.url;
+  $('#db-key').value = CLOUD.key;
+  $('#db-disconnect').style.display = CLOUD.enabled ? 'inline-flex' : 'none';
+  $('#db-modal').style.display = 'grid';
+}
+function closeDbModal() { $('#db-modal').style.display = 'none'; }
+
+// Привязка обработчиков модалки (один раз)
+$('#db-badge').addEventListener('click', openDbModal);
+$('#db-close').addEventListener('click', closeDbModal);
+$('#db-modal').addEventListener('click', (e) => { if (e.target.id === 'db-modal') closeDbModal(); });
+
+$('#db-connect').addEventListener('click', async () => {
+  const url = $('#db-url').value.trim();
+  const key = $('#db-key').value.trim();
+  if (!url || !key) { toast('Заполните оба поля', 'err'); return; }
+  connectCloud(url, key);
+  try {
+    await syncFromCloud();
+    closeDbModal();
+    updateDbBadge('online');
+    render();
+    startPolling();
+    toast('База подключена. Данные общие для всех.');
+  } catch (e) {
+    updateDbBadge('offline');
+    toast('Не удалось подключиться. Проверьте URL, ключ и таблицу.', 'err');
+  }
+});
+
+$('#db-disconnect').addEventListener('click', () => {
+  disconnectCloud();
+  if (pollTimer) clearInterval(pollTimer);
+  closeDbModal();
+  updateDbBadge('local');
+  loadFromStorage();
+  render();
+  toast('База отключена. Работаю локально.');
+});
+
+$('#db-copy-sql').addEventListener('click', () => {
+  const sql = $('#db-sql').textContent;
+  navigator.clipboard.writeText(sql).then(
+    () => toast('SQL скопирован'),
+    () => toast('Не удалось скопировать', 'err')
+  );
+});
+
 /* ---------- СТАРТ ---------- */
-loadFromStorage();
-render();
+async function init() {
+  if (CLOUD.enabled) {
+    try {
+      await syncFromCloud();
+      render();
+      startPolling();
+      updateDbBadge('online');
+      toast('База подключена');
+      return;
+    } catch (e) {
+      updateDbBadge('offline');
+      toast('Не удалось подключиться к базе. Работаю локально.', 'err');
+    }
+  } else {
+    updateDbBadge('local');
+  }
+  loadFromStorage();
+  render();
+}
+init();
 
 </script>
 </body>
