@@ -510,8 +510,8 @@
     </div>
     <div class="modal-body">
       <p class="modal-intro" id="db-intro">
-        Чтобы партии были видны всем с любых устройств, подключите бесплатную базу Supabase.
-        Вставьте сюда два значения из вашего проекта Supabase.
+        Общая база <b>уже подключена</b> — партии автоматически видны всем пользователям с любых устройств.
+        Менять эти поля нужно только если вы хотите подключить другую базу.
       </p>
       <div class="field">
         <label>Project URL</label>
@@ -567,11 +567,16 @@ create policy "public access" on batches
    ========================================================= */
 
 /* ---------- ОБЛАЧНОЕ ХРАНИЛИЩЕ (Supabase) ---------- */
-// Настройки подключения хранятся в localStorage браузера.
-// Их вводят один раз через кнопку «Подключить базу».
+// Встроенные настройки общей базы — подключается автоматически у всех.
+const CLOUD_DEFAULTS = {
+  url: 'https://bqrehvsndfmycilyyrkz.supabase.co',
+  key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxcmVodnNuZGZteWNpbHl5cmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NjMyOTMsImV4cCI6MjA5NTQzOTI5M30.XyNCpLKBpK-HAAzGPfHX9usKjgJchvpvYFFdm2cmDrc',
+};
+
+// Настройки берутся из встроенных по умолчанию; пользователь может переопределить через окно «База».
 const CLOUD = {
-  url:  localStorage.getItem('milk_sb_url')  || '',
-  key:  localStorage.getItem('milk_sb_key')  || '',
+  url:  localStorage.getItem('milk_sb_url')  || CLOUD_DEFAULTS.url,
+  key:  localStorage.getItem('milk_sb_key')  || CLOUD_DEFAULTS.key,
   get enabled() { return !!(this.url && this.key); },
 };
 
